@@ -64,8 +64,7 @@
         };
 
         Scroll.prototype.getScrollBuffer = function() {
-            //configurable
-            return 25;
+            return this.gantt.options.value('buffer');
         };
 
         Scroll.prototype.getHeight = function() {

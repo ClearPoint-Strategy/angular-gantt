@@ -7,7 +7,7 @@
         //     var end = Math.min(buffer + offset, input.length);
         //     var start = 0;
         //     if(offset > buffer){
-        //         start = end - (buffer * 2);
+        //         start = end - buffer;
         //     }
         //     return input.slice(start, end);
 
@@ -24,10 +24,10 @@
 
             //starting from end, collect the required parent nodes that we have to keep, if we have a full buffer and we will be truncating from the beginning of array
             var requiredParents = [];
-            if(visibleRows.length > buffer * 2){
+            if(visibleRows.length > buffer){
                 // visibleRows = visibleRows.slice(visibleRows.length - (buffer * 2));
-                for(var i = visibleRows.length - 1; i >= (end - (buffer * 2)); i --){
-                    //we are finding what to remove, we keep by default!!
+                for(var i = visibleRows.length - 1; i >= (end - (buffer)); i --){
+                    //keep any required parents to fulfill the hierarchy
                     var row = visibleRows[i];
                     if(row.model.parent != undefined && requiredParents.indexOf(row.model.parent) == -1){
                         requiredParents.push(row.model.parent);
@@ -36,7 +36,7 @@
 
                 //remove the set of rows BEFORE our rendered set
                 //put any required parents found at the start of our visible collection
-                var removedArray = visibleRows.splice(0, end - (buffer * 2));
+                var removedArray = visibleRows.splice(0, end - (buffer));
                 for(var i = removedArray.length - 1; i >= 0; i--){
                     if(requiredParents.indexOf(removedArray[i].model.id) != -1){
                         visibleRows.unshift(removedArray[i]);

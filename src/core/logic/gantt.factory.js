@@ -26,6 +26,8 @@
                     'taskContent': '{{task.model.name}}',
                     'rowContent': '{{row.model.name}}',
                     'maxHeight': 0,
+                    'buffer': 50,
+                    'rowHeight': 26,
                     'timeFrames': [],
                     'dateFrames': [],
                     'timeFramesWorkingMode': 'hidden',

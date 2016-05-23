@@ -66,34 +66,25 @@
                     $scope.gantt.rowsManager.updateVisibleObjects();
                 }
 
-                var numRequiredParents = $scope.gantt.rowsManager.visibleRows.length - (buffer * 2);
+                var numRequiredParents = $scope.gantt.rowsManager.visibleRows.length - buffer;
                 if(numRequiredParents <= 0){
                     numRequiredParents = 0;
                 }
-                if(offset - numRequiredParents > buffer) {
-                    var newHeight = (offset - numRequiredParents - buffer) * rowHeight;
-                    console.log("new top height: " + newHeight);
-                    if(newHeight + ($scope.gantt.rowsManager.visibleRows.length * rowHeight) <= $scope.gantt.scroll.getScrollHeight()) {
-                        $(".toppaddingrow").each(function(){
-                            $(this).height(newHeight);
-                        });
-                        $(".bottompaddingrow").each(function(){
-                            $(this).height($scope.gantt.scroll.getScrollHeight() - newHeight - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
-                        });
-                    } else {
-                        $(".toppaddingrow").each(function(){
-                            $(this).height($scope.gantt.scroll.getScrollHeight() - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
-                        });
-                        $(".bottompaddingrow").each(function(){
-                            $(this).height(0);
-                        });
-                    }
-                } else if(offset - numRequiredParents <= buffer){
+
+                var newHeight = (offset - numRequiredParents) * rowHeight;
+                if(newHeight + ($scope.gantt.rowsManager.visibleRows.length * rowHeight) <= $scope.gantt.scroll.getScrollHeight()) {
                     $(".toppaddingrow").each(function(){
-                        $(this).height(0);
+                        $(this).height(newHeight);
                     });
                     $(".bottompaddingrow").each(function(){
+                        $(this).height($scope.gantt.scroll.getScrollHeight() - newHeight - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
+                    });
+                } else {
+                    $(".toppaddingrow").each(function(){
                         $(this).height($scope.gantt.scroll.getScrollHeight() - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
+                    });
+                    $(".bottompaddingrow").each(function(){
+                        $(this).height(0);
                     });
                 }
 

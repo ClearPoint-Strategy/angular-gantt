@@ -453,8 +453,7 @@
         };
 
         RowsManager.prototype.getRowHeight = function() {
-            //get from a attribute
-            return 26;
+            return this.gantt.options.value('rowHeight');
         }
 
         RowsManager.prototype.rowCollapsed = function() {
