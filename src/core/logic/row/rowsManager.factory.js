@@ -57,6 +57,7 @@
             this.gantt.api.registerMethod('rows', 'sort', RowsManager.prototype.sortRows, this);
             this.gantt.api.registerMethod('rows', 'applySort', RowsManager.prototype.applySort, this);
             this.gantt.api.registerMethod('rows', 'refresh', RowsManager.prototype.updateVisibleObjects, this);
+            this.gantt.api.registerMethod('rows', 'rowCollapsed', RowsManager.prototype.rowCollapsed, this);
 
             this.gantt.api.registerMethod('rows', 'removeRowSorter', RowsManager.prototype.removeCustomRowSorter, this);
             this.gantt.api.registerMethod('rows', 'addRowSorter', RowsManager.prototype.addCustomRowSorter, this);
@@ -332,8 +333,9 @@
             var raiseEvent = !angular.equals(oldFilteredRows, this.filteredRows);
             this.customFilteredRows = this.applyCustomRowFilters(this.filteredRows);
 
-            // TODO: Implement rowLimit like columnLimit to enhance performance for gantt with many rows
-            this.visibleRows = this.customFilteredRows;
+            // Do the filter for infinite scroll mode
+            this.visibleRows = $filter('ganttRowLimit')(this.customFilteredRows, this.gantt, this.getRowHeight());
+            // this.visibleRows = this.customFilteredRows;
 
             this.gantt.api.rows.raise.displayed(this.sortedRows, this.filteredRows, this.visibleRows);
 
@@ -448,6 +450,15 @@
                 }
             }
             return defaultTo;
+        };
+
+        RowsManager.prototype.getRowHeight = function() {
+            //get from a attribute
+            return 26;
+        }
+
+        RowsManager.prototype.rowCollapsed = function() {
+            this.gantt.scroll.adjustScrollPadding(this.visibleRows.length, this.getRowHeight());
         };
 
         return RowsManager;

@@ -2,6 +2,7 @@
     'use strict';
     angular.module('gantt.tree').controller('GanttTreeController', ['$scope', '$filter', 'GanttHierarchy', function($scope, $filter, Hierarchy) {
         $scope.rootRows = [];
+        $scope.collapsedParents = [];
 
         $scope.getHeader = function() {
             return $scope.pluginScope.header;
@@ -58,6 +59,24 @@
                 }
                 parentRow = $scope.parent(parentRow);
             }
+
+            //quickly make sure this wasnt a previously closed parent
+            if($scope.collapsedParents.indexOf(row.model.parent) != -1){
+                return false;
+            }
+
+            //no parent in visible dataset, and our immediate parent wasnt collapsed.
+            //look up ancestry of parents to find which was collapsed.
+            if(row.model.parent != undefined) {
+                parentRow = $filter('filter')($scope.gantt.rowsManager.filteredRows, function (currentrow, index, array) { return currentrow.model.id === row.model.parent })[0];
+                while (parentRow !== undefined) {
+                    if (parentRow !== undefined && $scope.collapsedParents.indexOf(parentRow.model.id) != -1) {
+                        return false;
+                    }
+                    parentRow = $filter('filter')($scope.gantt.rowsManager.filteredRows, function (currentrow, index, array) { return currentrow.model.id === parentRow.model.parent })[0];
+                }
+            }
+
             return true;
         };
 
@@ -113,9 +132,9 @@
         });
 
         var refresh = function() {
-            $scope.rootRows = hierarchy.refresh($scope.gantt.rowsManager.filteredRows);
+            $scope.rootRows = hierarchy.refresh($scope.gantt.rowsManager.visibleRows);
 
-            if ($scope.gantt.rowsManager.filteredRows.length > 0) {
+            if ($scope.gantt.rowsManager.visibleRows.length > 0) {
                 $scope.gantt.api.rows.sort();
                 $scope.gantt.api.rows.refresh();
             }
@@ -191,8 +210,8 @@
 
         $scope.gantt.api.registerMethod('tree', 'getHierarchy', getHierarchy, this);
 
-        $scope.$watchCollection('gantt.rowsManager.filteredRows', function() {
-            refresh();
+        $scope.$watchCollection('gantt.rowsManager.visibleRows', function() {
+            $scope.rootRows = hierarchy.refresh($scope.gantt.rowsManager.visibleRows);
         });
 
         $scope.children = function(row) {
@@ -228,7 +247,7 @@
             if (newValue) {
                 // Children rows may have been filtered out
                 // So we need to filter the raw hierarchy before displaying children in tree.
-                var visibleRows = $scope.row.rowsManager.filteredRows;
+                var visibleRows = $scope.row.rowsManager.visibleRows;  //filteredRows
 
                 var filteredChildrenRows = [];
                 for (var i = 0; i < newValue.length; i++) {
@@ -245,6 +264,14 @@
         });
 
         $scope.isCollapseDisabled = function() {
+            //////////////////////////////////////////////////////////
+            // infinite scroll mode
+            //////////////////////////////////////////////////////////
+            if($scope.collapsedParents.indexOf($scope.$modelValue.model.id) != -1){
+                return false;
+            }
+            /////////////////////////////////////////////////////////
+            
             return !$scope.$parent.childrenRows || $scope.$parent.childrenRows.length === 0;
         };
 
@@ -273,6 +300,22 @@
                 $scope.$modelValue._collapsed = newValue; // $modelValue contains the Row object
                 if (oldValue !== undefined && newValue !== oldValue) {
                     $scope.gantt.api.tree.raise.collapsed($scope, $scope.$modelValue, newValue);
+
+                    /////////////////////////////////
+                    // in infinite scroll mode
+                    /////////////////////////////////
+                    $scope.gantt.api.rows.rowCollapsed();
+                    if(newValue == true) {
+                        $scope.collapsedParents.push($scope.$modelValue.model.id);
+                    } else {
+                        var previouslyCollapsedIdx = $scope.collapsedParents.indexOf($scope.$modelValue.model.id);
+                        if(previouslyCollapsedIdx != -1){
+                            $scope.collapsedParents.splice(previouslyCollapsedIdx, 1);
+                        }
+                    }
+                    ////////////////////////////////
+                    
+                    
                     $scope.gantt.api.rows.refresh();
                 }
             }

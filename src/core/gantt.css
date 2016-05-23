@@ -225,8 +225,9 @@
     height: 100%;
 }
 
-.gantt-row-even > .gantt-row-background {
-    background-color: #EFEFEF;
+/* Move to plugin */
+.gantt-row:nth-child(even) > .gantt-row-background {
+    background-color: #efefef;
 }
 
 .gantt-row {

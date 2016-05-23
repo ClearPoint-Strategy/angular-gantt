@@ -22,7 +22,9 @@
     <gantt-scrollable>
         <gantt-body>
             <gantt-body-background>
-                <gantt-row-background ng-repeat="row in gantt.rowsManager.visibleRows track by row.model.id"></gantt-row-background>
+                <!--<div class="toppaddingrow" style="height: 0px"></div>-->
+                <gantt-row-background ng-repeat="row in gantt.rowsManager.filteredRows track by row.model.id"></gantt-row-background>
+                <!--<div class="bottompaddingrow" ng-style-attr="height: {{gantt.scroll.getScrollHeight() - (gantt.rowsManager.visibleRows.length * gantt.rowsManager.getRowHeight())}}px"></div>-->
             </gantt-body-background>
             <gantt-body-foreground>
                 <div class="gantt-current-date-line" ng-show="currentDate === 'line' && gantt.currentDateManager.position >= 0 && gantt.currentDateManager.position <= gantt.width" ng-style="{'left': gantt.currentDateManager.position + 'px' }"></div>
@@ -35,10 +37,12 @@
             <div ng-if="gantt.columnsManager.visibleColumns == 0" style="background-color: #808080"></div>
             <gantt-body-rows>
                 <gantt-timespan ng-repeat="timespan in gantt.timespansManager.timespans track by timespan.model.id"></gantt-timespan>
+                <div class="toppaddingrow" style="height: 0px"></div>
                 <gantt-row ng-repeat="row in gantt.rowsManager.visibleRows track by row.model.id">
                     <gantt-task ng-repeat="task in row.visibleTasks track by task.model.id">
                     </gantt-task>
                 </gantt-row>
+                <div class="bottompaddingrow" ng-style-attr="height: {{gantt.scroll.getScrollHeight() - (gantt.rowsManager.visibleRows.length * gantt.rowsManager.getRowHeight())}}px"></div>
             </gantt-body-rows>
         </gantt-body>
     </gantt-scrollable>
@@ -155,24 +159,15 @@
 
     <!-- Row background template -->
     <script type="text/ng-template" id="template/ganttRowBackground.tmpl.html">
-        <div class="gantt-row gantt-row-height"
-             ng-class="row.model.classes"
-             ng-class-odd="'gantt-row-odd'"
-             ng-class-even="'gantt-row-even'"
-             ng-style="{'height': row.model.height}">
-            <div class="gantt-row-background"
-                 ng-style="{'background-color': row.model.color}">
+        <div class="gantt-row gantt-row-height">
+            <div class="gantt-row-background">
             </div>
         </div>
     </script>
 
     <!-- Row template -->
     <script type="text/ng-template" id="template/ganttRow.tmpl.html">
-        <div class="gantt-row gantt-row-height"
-             ng-class="row.model.classes"
-             ng-class-odd="'gantt-row-odd'"
-             ng-class-even="'gantt-row-even'"
-             ng-style="{'height': row.model.height}">
+        <div class="gantt-row gantt-row-height">
             <div ng-transclude class="gantt-row-content"></div>
         </div>
     </script>
@@ -185,16 +180,13 @@
             </div>
             <div class="gantt-side-background-body" ng-style="getMaxHeightCss()">
                 <div gantt-vertical-scroll-receiver>
+                    <!--<div class="toppaddingrow" style="height: 0px"></div>-->
                     <div class="gantt-row gantt-row-height "
-                         ng-class-odd="'gantt-row-odd'"
-                         ng-class-even="'gantt-row-even'"
-                         ng-class="row.model.classes"
-                         ng-repeat="row in gantt.rowsManager.visibleRows track by row.model.id"
-                         ng-style="{'height': row.model.height}">
-                        <div gantt-row-label class="gantt-row-label gantt-row-background"
-                             ng-style="{'background-color': row.model.color}">
+                         ng-repeat="row in gantt.rowsManager.filteredRows track by row.model.id">
+                        <div gantt-row-label class="gantt-row-label gantt-row-background">
                         </div>
                     </div>
+                    <!--<div class="bottompaddingrow" ng-style-attr="height: {{gantt.scroll.getScrollHeight() - (gantt.rowsManager.visibleRows.length * gantt.rowsManager.getRowHeight())}}px"></div>-->
                 </div>
             </div>
         </div>

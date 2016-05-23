@@ -1,0 +1,3 @@
+.gantt-row:nth-child(even) > .gantt-row-background {
+    background-color: #efefef;
+}

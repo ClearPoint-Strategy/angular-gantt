@@ -4,6 +4,8 @@
         var Scroll = function(gantt) {
             this.gantt = gantt;
 
+            this.scrollHeight = undefined;
+
             this.gantt.api.registerEvent('scroll', 'scroll');
 
             this.gantt.api.registerMethod('scroll', 'to', Scroll.prototype.scrollTo, this);
@@ -12,6 +14,7 @@
             this.gantt.api.registerMethod('scroll', 'right', Scroll.prototype.scrollToRight, this);
 
             this.gantt.api.registerMethod('scroll', 'setWidth', Scroll.prototype.setWidth, this);
+            this.gantt.api.registerMethod('scroll', 'setScrollHeight', Scroll.prototype.setScrollHeight, this);
         };
 
         Scroll.prototype.getScrollLeft = function() {
@@ -39,6 +42,48 @@
                 this.$element[0].offsetWidth = width;
             }
         };
+
+        Scroll.prototype.getScrollTop = function() {
+            if (this.$element === undefined) {
+                return undefined;
+            } else {
+                if (this.cachedScrollTop === undefined) {
+                    this.cachedScrollTop = this.$element[0].scrollTop;
+                }
+
+                return this.cachedScrollTop;
+            }
+        };
+
+        Scroll.prototype.getScrollHeight = function() {
+            return this.scrollHeight;
+        };
+
+        Scroll.prototype.setScrollHeight = function(scrollHeight){
+            this.scrollHeight = scrollHeight;
+        };
+
+        Scroll.prototype.getScrollBuffer = function() {
+            //configurable
+            return 25;
+        };
+
+        Scroll.prototype.getHeight = function() {
+            return this.$element === undefined ? undefined : this.$element[0].offsetHeight;
+        };
+
+        Scroll.prototype.setHeight = function(height) {
+            if (this.$element[0]) {
+                this.$element[0].offsetHeight = height;
+            }
+        };
+
+        Scroll.prototype.adjustScrollPadding = function(rowCount, rowHeight){
+            var topHeight = $($(".toppaddingrow")[0]).height();
+            $(".bottompaddingrow").each(function(){
+                $(this).height(this.scrollHeight - topHeight - (rowCount * rowHeight));
+            });
+        }
 
         Scroll.prototype.getBordersWidth = function() {
             if (this.$element === undefined) {
