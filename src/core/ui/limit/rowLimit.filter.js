@@ -43,7 +43,7 @@
                     }
                 }
             }
-
+            // console.log("filtered: " + visibleRows.length + " end: " + end);
             return visibleRows;
         }
 

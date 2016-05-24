@@ -340,3 +340,8 @@
     -ms-user-select: none;
     user-select: none;
 }
+
+li.bottompaddingrow, li.toppaddingrow, div.bottompaddingrow, div.toppaddingrow {
+    list-style: none !important;
+    background: transparent;
+}
