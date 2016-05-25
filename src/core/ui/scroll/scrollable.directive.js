@@ -58,36 +58,39 @@
                 $scope.gantt.scroll.cachedScrollTop = currentScrollTop;
                 $scope.gantt.columnsManager.updateVisibleColumns();
 
-                var buffer = $scope.gantt.scroll.getScrollBuffer();
-                var rowHeight = $scope.gantt.rowsManager.getRowHeight();
-                var offset = Math.floor(Math.min($scope.gantt.scroll.getScrollTop(), $scope.gantt.scroll.getScrollHeight()) / rowHeight)
+                if($scope.gantt.options.value('infiniteScroll')) {
+                    var buffer = $scope.gantt.scroll.getScrollBuffer();
+                    var rowHeight = $scope.gantt.rowsManager.getRowHeight();
+                    var offset = Math.floor(Math.min($scope.gantt.scroll.getScrollTop(), $scope.gantt.scroll.getScrollHeight()) / rowHeight)
 
-                if(currentRowOffset !== offset) {
+                    if (currentRowOffset !== offset) {
+                        $scope.gantt.rowsManager.updateVisibleObjects();
+                    }
+
+                    var numRequiredParents = $scope.gantt.rowsManager.visibleRows.length - buffer;
+                    if (numRequiredParents <= 0) {
+                        numRequiredParents = 0;
+                    }
+
+                    var newHeight = (offset - numRequiredParents) * rowHeight;
+                    if (newHeight + ($scope.gantt.rowsManager.visibleRows.length * rowHeight) <= $scope.gantt.scroll.getScrollHeight()) {
+                        $(".toppaddingrow").each(function () {
+                            $(this).height(newHeight);
+                        });
+                        $(".bottompaddingrow").each(function () {
+                            $(this).height($scope.gantt.scroll.getScrollHeight() - newHeight - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
+                        });
+                    } else {
+                        $(".toppaddingrow").each(function () {
+                            $(this).height($scope.gantt.scroll.getScrollHeight() - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
+                        });
+                        $(".bottompaddingrow").each(function () {
+                            $(this).height(0);
+                        });
+                    }
+                } else {
                     $scope.gantt.rowsManager.updateVisibleObjects();
                 }
-
-                var numRequiredParents = $scope.gantt.rowsManager.visibleRows.length - buffer;
-                if(numRequiredParents <= 0){
-                    numRequiredParents = 0;
-                }
-
-                var newHeight = (offset - numRequiredParents) * rowHeight;
-                if(newHeight + ($scope.gantt.rowsManager.visibleRows.length * rowHeight) <= $scope.gantt.scroll.getScrollHeight()) {
-                    $(".toppaddingrow").each(function(){
-                        $(this).height(newHeight);
-                    });
-                    $(".bottompaddingrow").each(function(){
-                        $(this).height($scope.gantt.scroll.getScrollHeight() - newHeight - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
-                    });
-                } else {
-                    $(".toppaddingrow").each(function(){
-                        $(this).height($scope.gantt.scroll.getScrollHeight() - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
-                    });
-                    $(".bottompaddingrow").each(function(){
-                        $(this).height(0);
-                    });
-                }
-
 
                 if (currentScrollLeft < lastScrollLeft && currentScrollLeft === 0) {
                     direction = 'left';

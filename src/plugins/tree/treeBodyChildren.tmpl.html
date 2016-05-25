@@ -5,13 +5,13 @@
             <a ng-disabled="isCollapseDisabled()" data-nodrag
                class="gantt-tree-handle-button btn btn-xs"
                ng-class="{'gantt-tree-collapsed': collapsed, 'gantt-tree-expanded': !collapsed}"
-               ng-click="!isCollapseDisabled() && toggle()"><span
+               ng-click="toggleRowCollapse(row)"><span
                 class="gantt-tree-handle glyphicon glyphicon-chevron-down"
                 ng-class="{
                 'glyphicon-chevron-right': collapsed, 'glyphicon-chevron-down': !collapsed,
                 'gantt-tree-collapsed': collapsed, 'gantt-tree-expanded': !collapsed}"></span>
             </a>
-            <span gantt-row-label class="gantt-label-text" gantt-bind-compile-html="getRowContent()"/>
+            <span gantt-row-label class="gantt-label-text">{{row.model.content.indexOf('{') != -1 ? row.model.name : row.model.content}}</span>
         </div>
     </div>
 </div>

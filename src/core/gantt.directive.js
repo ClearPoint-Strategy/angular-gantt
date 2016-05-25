@@ -52,6 +52,9 @@
                 timeFramesMagnet: '=?',
                 data: '=?',
                 api: '=?',
+                rowHeight: '=?',
+                buffer: '=?',
+                infiniteScroll: '=?',
                 options: '=?'
             },
             controller: ['$scope', '$element', function($scope, $element) {

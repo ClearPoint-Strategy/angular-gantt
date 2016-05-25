@@ -193,7 +193,9 @@
                 if (indexOf > -1) {
                     removedRow = this.rows.splice(indexOf, 1)[0]; // Remove from array
                     var deregisterFunction = this.rowsTaskWatchers.splice(indexOf, 1)[0]; // Remove watcher
-                    deregisterFunction();
+                    if(deregisterFunction && typeof deregisterFunction == 'function') {
+                        deregisterFunction();
+                    }
                 }
 
                 arrays.removeId(this.sortedRows, rowId, ['model', 'id']);
@@ -333,9 +335,11 @@
             var raiseEvent = !angular.equals(oldFilteredRows, this.filteredRows);
             this.customFilteredRows = this.applyCustomRowFilters(this.filteredRows);
 
-            // Do the filter for infinite scroll mode
-            this.visibleRows = $filter('ganttRowLimit')(this.customFilteredRows, this.gantt, this.getRowHeight());
-            // this.visibleRows = this.customFilteredRows;
+            if(this.gantt.options.value('infiniteScroll')) {
+                this.visibleRows = $filter('ganttRowLimit')(this.customFilteredRows, this.gantt, this.getRowHeight());
+            } else {
+                this.visibleRows = this.customFilteredRows;
+            }
 
             this.gantt.api.rows.raise.displayed(this.sortedRows, this.filteredRows, this.visibleRows);
 

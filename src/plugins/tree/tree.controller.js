@@ -140,8 +140,8 @@
             }
         };
 
-        $scope.gantt.api.rows.on.remove($scope, refresh);
-        $scope.gantt.api.rows.on.add($scope, refresh);
+        // $scope.gantt.api.rows.on.remove($scope, refresh);
+        // $scope.gantt.api.rows.on.add($scope, refresh);
 
         var isRowCollapsed = function(rowId) {
             var row;
@@ -226,6 +226,59 @@
         };
 
         $scope.nodeScopes = {};
+
+        $scope.$on('ganttCollapseAll', function(event, args){
+            console.log($scope.gantt.rowsManager.visibleRows)
+            angular.forEach($scope.gantt.rowsManager.visibleRows, function(row, index){
+                var kids = $scope.children(row);
+                if(kids && kids.length > 0){
+                    var isCurrentlyCollapsed = row._collapsed;
+                    if(isCurrentlyCollapsed){
+                        $scope.gantt.api.tree.expand(row.model.id)
+                        row._collapsed = false;
+                        if($scope.gantt.options.value('infiniteScroll')) {
+                            var previouslyCollapsedIdx = $scope.collapsedParents.indexOf(row.model.id);
+                            if (previouslyCollapsedIdx != -1) {
+                                $scope.collapsedParents.splice(previouslyCollapsedIdx, 1);
+                            }
+                        }
+
+                    } else {
+                        $scope.gantt.api.tree.collapse(row.model.id)
+                        row._collapsed = true;
+                        if($scope.gantt.options.value('infiniteScroll')) {
+                            $scope.collapsedParents.push(row.model.id);
+                        }
+                    }
+                }
+                // $scope.gantt.api.rows.refresh();
+            });
+        });
+
+        $scope.toggleRowCollapse = function(row){
+            var isCurrentlyCollapsed = row._collapsed;
+            if(isCurrentlyCollapsed){
+                this.gantt.api.tree.expand(row.model.id)
+                row._collapsed = false;
+                if($scope.gantt.options.value('infiniteScroll')) {
+                    var previouslyCollapsedIdx = $scope.collapsedParents.indexOf(row.model.id);
+                    if (previouslyCollapsedIdx != -1) {
+                        $scope.collapsedParents.splice(previouslyCollapsedIdx, 1);
+                    }
+                }
+
+            } else {
+                this.gantt.api.tree.collapse(row.model.id)
+                row._collapsed = true;
+                if($scope.gantt.options.value('infiniteScroll')) {
+                    $scope.collapsedParents.push(row.model.id);
+                }
+            }
+            $scope.gantt.api.tree.raise.collapsed($scope, row, row._collapsed);
+            $scope.gantt.api.rows.rowCollapsed();
+            $scope.gantt.api.rows.refresh();
+        }
+
     }]).controller('GanttUiTreeController', ['$scope', function($scope) {
         var collapseAll = function() {
             $scope.$broadcast('angular-ui-tree:collapse-all');
@@ -256,7 +309,6 @@
                         filteredChildrenRows.push(childRow);
                     }
                 }
-
                 $scope.$parent.childrenRows = filteredChildrenRows;
             } else {
                 $scope.$parent.childrenRows = newValue;
@@ -264,14 +316,11 @@
         });
 
         $scope.isCollapseDisabled = function() {
-            //////////////////////////////////////////////////////////
-            // infinite scroll mode
-            //////////////////////////////////////////////////////////
-            if($scope.collapsedParents.indexOf($scope.$modelValue.model.id) != -1){
-                return false;
+            if($scope.gantt.options.value('infiniteScroll')) {
+                if ($scope.collapsedParents.indexOf($scope.$modelValue.model.id) != -1) {
+                    return false;
+                }
             }
-            /////////////////////////////////////////////////////////
-            
             return !$scope.$parent.childrenRows || $scope.$parent.childrenRows.length === 0;
         };
 
@@ -293,33 +342,6 @@
             }
             return content;
         };
-
-        $scope.$watch('collapsed', function(newValue) {
-            if ($scope.$modelValue._collapsed !== newValue) {
-                var oldValue = $scope.$modelValue._collapsed;
-                $scope.$modelValue._collapsed = newValue; // $modelValue contains the Row object
-                if (oldValue !== undefined && newValue !== oldValue) {
-                    $scope.gantt.api.tree.raise.collapsed($scope, $scope.$modelValue, newValue);
-
-                    /////////////////////////////////
-                    // in infinite scroll mode
-                    /////////////////////////////////
-                    $scope.gantt.api.rows.rowCollapsed();
-                    if(newValue == true) {
-                        $scope.collapsedParents.push($scope.$modelValue.model.id);
-                    } else {
-                        var previouslyCollapsedIdx = $scope.collapsedParents.indexOf($scope.$modelValue.model.id);
-                        if(previouslyCollapsedIdx != -1){
-                            $scope.collapsedParents.splice(previouslyCollapsedIdx, 1);
-                        }
-                    }
-                    ////////////////////////////////
-                    
-                    
-                    $scope.gantt.api.rows.refresh();
-                }
-            }
-        });
     }]);
 }());
 

@@ -31,7 +31,8 @@
                     'timeFrames': [],
                     'dateFrames': [],
                     'timeFramesWorkingMode': 'hidden',
-                    'timeFramesNonWorkingMode': 'visible'
+                    'timeFramesNonWorkingMode': 'visible',
+                    'infiniteScroll': false
                 });
 
                 this.api = new GanttApi(this);
@@ -209,7 +210,6 @@
                         }
 
                         var rowHeight = self.rowsManager.getRowHeight();
-                        // console.log("SH: " + rowHeight * newData.length);
                         self.api.scroll.setScrollHeight(rowHeight * newData.length);
 
                         self.api.data.raise.change(newData, oldData);
