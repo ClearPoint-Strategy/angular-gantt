@@ -203,6 +203,10 @@
     border: 2px solid #a00000;
 }
 
+.gantt-row:nth-child(even) > .gantt-row-background {
+    background-color: #efefef;
+}
+
 .gantt-task-progress {
     position: absolute;
     overflow: hidden;

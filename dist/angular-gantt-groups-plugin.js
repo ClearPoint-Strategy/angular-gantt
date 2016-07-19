@@ -266,7 +266,7 @@ angular.module('gantt.groups.templates', []).run(['$templateCache', function($te
         '\n' +
         '');
     $templateCache.put('plugins/groups/taskOverview.tmpl.html',
-        '<div class="gantt-task gantt-task-overview" ng-class="task.model.classes">\n' +
+        '<div class="gantt-task gantt-task-overview">\n' +
         '    <gantt-task-background></gantt-task-background>\n' +
         '    <gantt-task-content></gantt-task-content>\n' +
         '    <gantt-task-foreground></gantt-task-foreground>\n' +

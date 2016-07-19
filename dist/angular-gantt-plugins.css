@@ -85,6 +85,10 @@
     fill: rgb(64, 64, 160); /* blue */
 }
 
+.gantt-task-conflict {
+    border: 2px solid #a00000;
+}
+
 .gantt-task-group {
     position: absolute;
 
@@ -197,6 +201,10 @@
 
 .gantt-task-overlaps {
     border: 2px solid #a00000;
+}
+
+.gantt-row:nth-child(even) > .gantt-row-background {
+    background-color: #efefef;
 }
 
 .gantt-task-progress {

@@ -92,6 +92,7 @@ Github: https://github.com/angular-gantt/angular-gantt.git
     'use strict';
     angular.module('gantt.tree').controller('GanttTreeController', ['$scope', '$filter', 'GanttHierarchy', function($scope, $filter, Hierarchy) {
         $scope.rootRows = [];
+        $scope.collapsedParents = [];
 
         $scope.getHeader = function() {
             return $scope.pluginScope.header;
@@ -148,6 +149,24 @@ Github: https://github.com/angular-gantt/angular-gantt.git
                 }
                 parentRow = $scope.parent(parentRow);
             }
+
+            //quickly make sure this wasnt a previously closed parent
+            if($scope.collapsedParents.indexOf(row.model.parent) != -1){
+                return false;
+            }
+
+            //no parent in visible dataset, and our immediate parent wasnt collapsed.
+            //look up ancestry of parents to find which was collapsed.
+            if(row.model.parent != undefined) {
+                parentRow = $filter('filter')($scope.gantt.rowsManager.filteredRows, function (currentrow, index, array) { return currentrow.model.id === row.model.parent })[0];
+                while (parentRow !== undefined) {
+                    if (parentRow !== undefined && $scope.collapsedParents.indexOf(parentRow.model.id) != -1) {
+                        return false;
+                    }
+                    parentRow = $filter('filter')($scope.gantt.rowsManager.filteredRows, function (currentrow, index, array) { return currentrow.model.id === parentRow.model.parent })[0];
+                }
+            }
+
             return true;
         };
 
@@ -203,16 +222,16 @@ Github: https://github.com/angular-gantt/angular-gantt.git
         });
 
         var refresh = function() {
-            $scope.rootRows = hierarchy.refresh($scope.gantt.rowsManager.filteredRows);
+            $scope.rootRows = hierarchy.refresh($scope.gantt.rowsManager.visibleRows);
 
-            if ($scope.gantt.rowsManager.filteredRows.length > 0) {
+            if ($scope.gantt.rowsManager.visibleRows.length > 0) {
                 $scope.gantt.api.rows.sort();
                 $scope.gantt.api.rows.refresh();
             }
         };
 
-        $scope.gantt.api.rows.on.remove($scope, refresh);
-        $scope.gantt.api.rows.on.add($scope, refresh);
+        // $scope.gantt.api.rows.on.remove($scope, refresh);
+        // $scope.gantt.api.rows.on.add($scope, refresh);
 
         var isRowCollapsed = function(rowId) {
             var row;
@@ -281,8 +300,8 @@ Github: https://github.com/angular-gantt/angular-gantt.git
 
         $scope.gantt.api.registerMethod('tree', 'getHierarchy', getHierarchy, this);
 
-        $scope.$watchCollection('gantt.rowsManager.filteredRows', function() {
-            refresh();
+        $scope.$watchCollection('gantt.rowsManager.visibleRows', function() {
+            $scope.rootRows = hierarchy.refresh($scope.gantt.rowsManager.visibleRows);
         });
 
         $scope.children = function(row) {
@@ -297,6 +316,59 @@ Github: https://github.com/angular-gantt/angular-gantt.git
         };
 
         $scope.nodeScopes = {};
+
+        $scope.$on('ganttCollapseAll', function(event, args){
+            console.log($scope.gantt.rowsManager.visibleRows)
+            angular.forEach($scope.gantt.rowsManager.visibleRows, function(row, index){
+                var kids = $scope.children(row);
+                if(kids && kids.length > 0){
+                    var isCurrentlyCollapsed = row._collapsed;
+                    if(isCurrentlyCollapsed){
+                        $scope.gantt.api.tree.expand(row.model.id)
+                        row._collapsed = false;
+                        if($scope.gantt.options.value('infiniteScroll')) {
+                            var previouslyCollapsedIdx = $scope.collapsedParents.indexOf(row.model.id);
+                            if (previouslyCollapsedIdx != -1) {
+                                $scope.collapsedParents.splice(previouslyCollapsedIdx, 1);
+                            }
+                        }
+
+                    } else {
+                        $scope.gantt.api.tree.collapse(row.model.id)
+                        row._collapsed = true;
+                        if($scope.gantt.options.value('infiniteScroll')) {
+                            $scope.collapsedParents.push(row.model.id);
+                        }
+                    }
+                }
+                // $scope.gantt.api.rows.refresh();
+            });
+        });
+
+        $scope.toggleRowCollapse = function(row){
+            var isCurrentlyCollapsed = row._collapsed;
+            if(isCurrentlyCollapsed){
+                this.gantt.api.tree.expand(row.model.id)
+                row._collapsed = false;
+                if($scope.gantt.options.value('infiniteScroll')) {
+                    var previouslyCollapsedIdx = $scope.collapsedParents.indexOf(row.model.id);
+                    if (previouslyCollapsedIdx != -1) {
+                        $scope.collapsedParents.splice(previouslyCollapsedIdx, 1);
+                    }
+                }
+
+            } else {
+                this.gantt.api.tree.collapse(row.model.id)
+                row._collapsed = true;
+                if($scope.gantt.options.value('infiniteScroll')) {
+                    $scope.collapsedParents.push(row.model.id);
+                }
+            }
+            $scope.gantt.api.tree.raise.collapsed($scope, row, row._collapsed);
+            $scope.gantt.api.rows.rowCollapsed();
+            $scope.gantt.api.rows.refresh();
+        }
+
     }]).controller('GanttUiTreeController', ['$scope', function($scope) {
         var collapseAll = function() {
             $scope.$broadcast('angular-ui-tree:collapse-all');
@@ -318,7 +390,7 @@ Github: https://github.com/angular-gantt/angular-gantt.git
             if (newValue) {
                 // Children rows may have been filtered out
                 // So we need to filter the raw hierarchy before displaying children in tree.
-                var visibleRows = $scope.row.rowsManager.filteredRows;
+                var visibleRows = $scope.row.rowsManager.visibleRows;  //filteredRows
 
                 var filteredChildrenRows = [];
                 for (var i = 0; i < newValue.length; i++) {
@@ -327,7 +399,6 @@ Github: https://github.com/angular-gantt/angular-gantt.git
                         filteredChildrenRows.push(childRow);
                     }
                 }
-
                 $scope.$parent.childrenRows = filteredChildrenRows;
             } else {
                 $scope.$parent.childrenRows = newValue;
@@ -335,6 +406,11 @@ Github: https://github.com/angular-gantt/angular-gantt.git
         });
 
         $scope.isCollapseDisabled = function() {
+            if($scope.gantt.options.value('infiniteScroll')) {
+                if ($scope.collapsedParents.indexOf($scope.$modelValue.model.id) != -1) {
+                    return false;
+                }
+            }
             return !$scope.$parent.childrenRows || $scope.$parent.childrenRows.length === 0;
         };
 
@@ -356,17 +432,6 @@ Github: https://github.com/angular-gantt/angular-gantt.git
             }
             return content;
         };
-
-        $scope.$watch('collapsed', function(newValue) {
-            if ($scope.$modelValue._collapsed !== newValue) {
-                var oldValue = $scope.$modelValue._collapsed;
-                $scope.$modelValue._collapsed = newValue; // $modelValue contains the Row object
-                if (oldValue !== undefined && newValue !== oldValue) {
-                    $scope.gantt.api.tree.raise.collapsed($scope, $scope.$modelValue, newValue);
-                    $scope.gantt.api.rows.refresh();
-                }
-            }
-        });
     }]);
 }());
 
@@ -417,40 +482,41 @@ angular.module('gantt.tree.templates', []).run(['$templateCache', function($temp
         '<div class="gantt-tree-body" ng-style="getLabelsCss()">\n' +
         '    <div gantt-vertical-scroll-receiver>\n' +
         '        <div class="gantt-row-label-background">\n' +
+        '            <div class="toppaddingrow" style="height: 0px"></div>\n' +
         '            <div class="gantt-row-label gantt-row-height"\n' +
-        '                 ng-class="row.model.classes"\n' +
-        '                 ng-style="{\'height\': row.model.height}"\n' +
         '                 ng-repeat="row in gantt.rowsManager.visibleRows track by row.model.id">\n' +
         '                &nbsp;\n' +
         '            </div>\n' +
+        '            <div class="bottompaddingrow" ng-style-attr="height: {{gantt.scroll.getScrollHeight() - (gantt.rowsManager.visibleRows.length * gantt.rowsManager.getRowHeight())}}px"></div>\n' +
         '        </div>\n' +
         '        <div ui-tree ng-controller="GanttUiTreeController" data-drag-enabled="false" data-empty-place-holder-enabled="false">\n' +
         '            <ol class="gantt-tree-root" ui-tree-nodes ng-model="rootRows">\n' +
+        '                <li class="toppaddingrow" style="height: 0px"></li>\n' +
         '                <li ng-repeat="row in rootRows" ui-tree-node\n' +
         '                    ng-include="\'plugins/tree/treeBodyChildren.tmpl.html\'">\n' +
         '                </li>\n' +
+        '                <li class="bottompaddingrow" ng-style-attr="height: {{gantt.scroll.getScrollHeight() - (gantt.rowsManager.visibleRows.length * gantt.rowsManager.getRowHeight())}}px"></li>\n' +
         '            </ol>\n' +
         '        </div>\n' +
+        '\n' +
         '    </div>\n' +
         '</div>\n' +
         '');
     $templateCache.put('plugins/tree/treeBodyChildren.tmpl.html',
         '<div ng-controller="GanttTreeNodeController"\n' +
-        '     class="gantt-row-label gantt-row-height"\n' +
-        '     ng-class="row.model.classes"\n' +
-        '     ng-style="{\'height\': row.model.height}">\n' +
+        '     class="gantt-row-label gantt-row-height">\n' +
         '    <div class="gantt-valign-container">\n' +
         '        <div class="gantt-valign-content">\n' +
         '            <a ng-disabled="isCollapseDisabled()" data-nodrag\n' +
         '               class="gantt-tree-handle-button btn btn-xs"\n' +
         '               ng-class="{\'gantt-tree-collapsed\': collapsed, \'gantt-tree-expanded\': !collapsed}"\n' +
-        '               ng-click="!isCollapseDisabled() && toggle()"><span\n' +
+        '               ng-click="toggleRowCollapse(row)"><span\n' +
         '                class="gantt-tree-handle glyphicon glyphicon-chevron-down"\n' +
         '                ng-class="{\n' +
         '                \'glyphicon-chevron-right\': collapsed, \'glyphicon-chevron-down\': !collapsed,\n' +
         '                \'gantt-tree-collapsed\': collapsed, \'gantt-tree-expanded\': !collapsed}"></span>\n' +
         '            </a>\n' +
-        '            <span gantt-row-label class="gantt-label-text" gantt-bind-compile-html="getRowContent()"/>\n' +
+        '            <span gantt-row-label class="gantt-label-text">{{row.model.content.indexOf(\'{\') != -1 ? row.model.name : row.model.content}}</span>\n' +
         '        </div>\n' +
         '    </div>\n' +
         '</div>\n' +

@@ -59,6 +59,9 @@ Github: https://github.com/angular-gantt/angular-gantt.git
                 timeFramesMagnet: '=?',
                 data: '=?',
                 api: '=?',
+                rowHeight: '=?',
+                buffer: '=?',
+                infiniteScroll: '=?',
                 options: '=?'
             },
             controller: ['$scope', '$element', function($scope, $element) {
@@ -2021,10 +2024,13 @@ Github: https://github.com/angular-gantt/angular-gantt.git
                     'taskContent': '{{task.model.name}}',
                     'rowContent': '{{row.model.name}}',
                     'maxHeight': 0,
+                    'buffer': 50,
+                    'rowHeight': 26,
                     'timeFrames': [],
                     'dateFrames': [],
                     'timeFramesWorkingMode': 'hidden',
-                    'timeFramesNonWorkingMode': 'visible'
+                    'timeFramesNonWorkingMode': 'visible',
+                    'infiniteScroll': false
                 });
 
                 this.api = new GanttApi(this);
@@ -2200,6 +2206,9 @@ Github: https://github.com/angular-gantt/angular-gantt.git
                             var rowData = newData[j];
                             self.rowsManager.addRow(rowData, modelOrderChanged);
                         }
+
+                        var rowHeight = self.rowsManager.getRowHeight();
+                        self.api.scroll.setScrollHeight(rowHeight * newData.length);
 
                         self.api.data.raise.change(newData, oldData);
 
@@ -2737,6 +2746,7 @@ Github: https://github.com/angular-gantt/angular-gantt.git
             this.gantt.api.registerMethod('rows', 'sort', RowsManager.prototype.sortRows, this);
             this.gantt.api.registerMethod('rows', 'applySort', RowsManager.prototype.applySort, this);
             this.gantt.api.registerMethod('rows', 'refresh', RowsManager.prototype.updateVisibleObjects, this);
+            this.gantt.api.registerMethod('rows', 'rowCollapsed', RowsManager.prototype.rowCollapsed, this);
 
             this.gantt.api.registerMethod('rows', 'removeRowSorter', RowsManager.prototype.removeCustomRowSorter, this);
             this.gantt.api.registerMethod('rows', 'addRowSorter', RowsManager.prototype.addCustomRowSorter, this);
@@ -2872,7 +2882,9 @@ Github: https://github.com/angular-gantt/angular-gantt.git
                 if (indexOf > -1) {
                     removedRow = this.rows.splice(indexOf, 1)[0]; // Remove from array
                     var deregisterFunction = this.rowsTaskWatchers.splice(indexOf, 1)[0]; // Remove watcher
-                    deregisterFunction();
+                    if(deregisterFunction && typeof deregisterFunction == 'function') {
+                        deregisterFunction();
+                    }
                 }
 
                 arrays.removeId(this.sortedRows, rowId, ['model', 'id']);
@@ -3012,8 +3024,11 @@ Github: https://github.com/angular-gantt/angular-gantt.git
             var raiseEvent = !angular.equals(oldFilteredRows, this.filteredRows);
             this.customFilteredRows = this.applyCustomRowFilters(this.filteredRows);
 
-            // TODO: Implement rowLimit like columnLimit to enhance performance for gantt with many rows
-            this.visibleRows = this.customFilteredRows;
+            if(this.gantt.options.value('infiniteScroll')) {
+                this.visibleRows = $filter('ganttRowLimit')(this.customFilteredRows, this.gantt, this.getRowHeight());
+            } else {
+                this.visibleRows = this.customFilteredRows;
+            }
 
             this.gantt.api.rows.raise.displayed(this.sortedRows, this.filteredRows, this.visibleRows);
 
@@ -3128,6 +3143,14 @@ Github: https://github.com/angular-gantt/angular-gantt.git
                 }
             }
             return defaultTo;
+        };
+
+        RowsManager.prototype.getRowHeight = function() {
+            return this.gantt.options.value('rowHeight');
+        }
+
+        RowsManager.prototype.rowCollapsed = function() {
+            this.gantt.scroll.adjustScrollPadding(this.visibleRows.length, this.getRowHeight());
         };
 
         return RowsManager;
@@ -3411,6 +3434,8 @@ Github: https://github.com/angular-gantt/angular-gantt.git
         var Scroll = function(gantt) {
             this.gantt = gantt;
 
+            this.scrollHeight = undefined;
+
             this.gantt.api.registerEvent('scroll', 'scroll');
 
             this.gantt.api.registerMethod('scroll', 'to', Scroll.prototype.scrollTo, this);
@@ -3419,6 +3444,7 @@ Github: https://github.com/angular-gantt/angular-gantt.git
             this.gantt.api.registerMethod('scroll', 'right', Scroll.prototype.scrollToRight, this);
 
             this.gantt.api.registerMethod('scroll', 'setWidth', Scroll.prototype.setWidth, this);
+            this.gantt.api.registerMethod('scroll', 'setScrollHeight', Scroll.prototype.setScrollHeight, this);
         };
 
         Scroll.prototype.getScrollLeft = function() {
@@ -3446,6 +3472,47 @@ Github: https://github.com/angular-gantt/angular-gantt.git
                 this.$element[0].offsetWidth = width;
             }
         };
+
+        Scroll.prototype.getScrollTop = function() {
+            if (this.$element === undefined) {
+                return undefined;
+            } else {
+                if (this.cachedScrollTop === undefined) {
+                    this.cachedScrollTop = this.$element[0].scrollTop;
+                }
+
+                return this.cachedScrollTop;
+            }
+        };
+
+        Scroll.prototype.getScrollHeight = function() {
+            return this.scrollHeight;
+        };
+
+        Scroll.prototype.setScrollHeight = function(scrollHeight){
+            this.scrollHeight = scrollHeight;
+        };
+
+        Scroll.prototype.getScrollBuffer = function() {
+            return this.gantt.options.value('buffer');
+        };
+
+        Scroll.prototype.getHeight = function() {
+            return this.$element === undefined ? undefined : this.$element[0].offsetHeight;
+        };
+
+        Scroll.prototype.setHeight = function(height) {
+            if (this.$element[0]) {
+                this.$element[0].offsetHeight = height;
+            }
+        };
+
+        Scroll.prototype.adjustScrollPadding = function(rowCount, rowHeight){
+            var topHeight = $($(".toppaddingrow")[0]).height();
+            $(".bottompaddingrow").each(function(){
+                $(this).height(this.scrollHeight - topHeight - (rowCount * rowHeight));
+            });
+        }
 
         Scroll.prototype.getBordersWidth = function() {
             if (this.$element === undefined) {
@@ -4095,6 +4162,59 @@ Github: https://github.com/angular-gantt/angular-gantt.git
 
 (function(){
     'use strict';
+    angular.module('gantt').filter('ganttRowLimit', [ '$filter', function($filter) {
+        // filter to find subset of full dataset that is in a buffer range for rendering, based on scroll position of full collection
+
+        // Ideal implementation would be simply to move our buffer around and not worry about removing a parent to maintain hierarchy
+        //     var end = Math.min(buffer + offset, input.length);
+        //     var start = 0;
+        //     if(offset > buffer){
+        //         start = end - buffer;
+        //     }
+        //     return input.slice(start, end);
+
+        return function(input, gantt, rowHeight) {
+            var buffer = gantt.scroll.getScrollBuffer();   //  +/- buffer for vertical infinite scroll
+
+            // get offset row index so we can move our buffer around in the full dataset
+            var offset = 0;
+            offset = Math.floor(Math.min(gantt.scroll.getScrollTop(), gantt.scroll.getScrollHeight()) / rowHeight)
+
+            //chop off the area of source data beyond the buffer
+            var end = Math.min(buffer + offset, input.length);
+            var visibleRows = input.slice(0, end);
+
+            //starting from end, collect the required parent nodes that we have to keep, if we have a full buffer and we will be truncating from the beginning of array
+            var requiredParents = [];
+            if(visibleRows.length > buffer){
+                // visibleRows = visibleRows.slice(visibleRows.length - (buffer * 2));
+                for(var i = visibleRows.length - 1; i >= (end - (buffer)); i --){
+                    //keep any required parents to fulfill the hierarchy
+                    var row = visibleRows[i];
+                    if(row.model.parent != undefined && requiredParents.indexOf(row.model.parent) == -1){
+                        requiredParents.push(row.model.parent);
+                    }
+                }
+
+                //remove the set of rows BEFORE our rendered set
+                //put any required parents found at the start of our visible collection
+                var removedArray = visibleRows.splice(0, end - (buffer));
+                for(var i = removedArray.length - 1; i >= 0; i--){
+                    if(requiredParents.indexOf(removedArray[i].model.id) != -1){
+                        visibleRows.unshift(removedArray[i]);
+                    }
+                }
+            }
+            // console.log("filtered: " + visibleRows.length + " end: " + end);
+            return visibleRows;
+        }
+
+    }]);
+}());
+
+
+(function(){
+    'use strict';
     angular.module('gantt').filter('ganttTaskLimit', [function() {
         // Returns only the tasks which are visible on the screen
         // Use the task width and position to decide if a task is still visible
@@ -4370,6 +4490,7 @@ Github: https://github.com/angular-gantt/angular-gantt.git
             $scope.gantt.scroll.$element = $element;
             var lastScrollLeft;
             var autoExpandTimer;
+            var currentRowOffset;
 
             var autoExpandColumns = function(el, date, direction) {
                 var autoExpand = $scope.gantt.options.value('autoExpand');
@@ -4413,12 +4534,47 @@ Github: https://github.com/angular-gantt/angular-gantt.git
             $element.bind('scroll', debounce(function() {
                 var el = $element[0];
                 var currentScrollLeft = el.scrollLeft;
+                var currentScrollTop = el.scrollTop;
                 var direction;
                 var date;
 
                 $scope.gantt.scroll.cachedScrollLeft = currentScrollLeft;
+                $scope.gantt.scroll.cachedScrollTop = currentScrollTop;
                 $scope.gantt.columnsManager.updateVisibleColumns();
-                $scope.gantt.rowsManager.updateVisibleObjects();
+
+                if($scope.gantt.options.value('infiniteScroll')) {
+                    var buffer = $scope.gantt.scroll.getScrollBuffer();
+                    var rowHeight = $scope.gantt.rowsManager.getRowHeight();
+                    var offset = Math.floor(Math.min($scope.gantt.scroll.getScrollTop(), $scope.gantt.scroll.getScrollHeight()) / rowHeight)
+
+                    if (currentRowOffset !== offset) {
+                        $scope.gantt.rowsManager.updateVisibleObjects();
+                    }
+
+                    var numRequiredParents = $scope.gantt.rowsManager.visibleRows.length - buffer;
+                    if (numRequiredParents <= 0) {
+                        numRequiredParents = 0;
+                    }
+
+                    var newHeight = (offset - numRequiredParents) * rowHeight;
+                    if (newHeight + ($scope.gantt.rowsManager.visibleRows.length * rowHeight) <= $scope.gantt.scroll.getScrollHeight()) {
+                        $(".toppaddingrow").each(function () {
+                            $(this).height(newHeight);
+                        });
+                        $(".bottompaddingrow").each(function () {
+                            $(this).height($scope.gantt.scroll.getScrollHeight() - newHeight - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
+                        });
+                    } else {
+                        $(".toppaddingrow").each(function () {
+                            $(this).height($scope.gantt.scroll.getScrollHeight() - ($scope.gantt.rowsManager.visibleRows.length * rowHeight));
+                        });
+                        $(".bottompaddingrow").each(function () {
+                            $(this).height(0);
+                        });
+                    }
+                } else {
+                    $scope.gantt.rowsManager.updateVisibleObjects();
+                }
 
                 if (currentScrollLeft < lastScrollLeft && currentScrollLeft === 0) {
                     direction = 'left';
@@ -5289,7 +5445,9 @@ angular.module('gantt.templates', []).run(['$templateCache', function($templateC
         '    <gantt-scrollable>\n' +
         '        <gantt-body>\n' +
         '            <gantt-body-background>\n' +
+        '                <div class="toppaddingrow" style="height: 0px"></div>\n' +
         '                <gantt-row-background ng-repeat="row in gantt.rowsManager.visibleRows track by row.model.id"></gantt-row-background>\n' +
+        '                <div class="bottompaddingrow" ng-style-attr="height: {{gantt.scroll.getScrollHeight() - (gantt.rowsManager.visibleRows.length * gantt.rowsManager.getRowHeight())}}px"></div>\n' +
         '            </gantt-body-background>\n' +
         '            <gantt-body-foreground>\n' +
         '                <div class="gantt-current-date-line" ng-show="currentDate === \'line\' && gantt.currentDateManager.position >= 0 && gantt.currentDateManager.position <= gantt.width" ng-style="{\'left\': gantt.currentDateManager.position + \'px\' }"></div>\n' +
@@ -5302,10 +5460,12 @@ angular.module('gantt.templates', []).run(['$templateCache', function($templateC
         '            <div ng-if="gantt.columnsManager.visibleColumns == 0" style="background-color: #808080"></div>\n' +
         '            <gantt-body-rows>\n' +
         '                <gantt-timespan ng-repeat="timespan in gantt.timespansManager.timespans track by timespan.model.id"></gantt-timespan>\n' +
+        '                <div class="toppaddingrow" style="height: 0px"></div>\n' +
         '                <gantt-row ng-repeat="row in gantt.rowsManager.visibleRows track by row.model.id">\n' +
         '                    <gantt-task ng-repeat="task in row.visibleTasks track by task.model.id">\n' +
         '                    </gantt-task>\n' +
         '                </gantt-row>\n' +
+        '                <div class="bottompaddingrow" ng-style-attr="height: {{gantt.scroll.getScrollHeight() - (gantt.rowsManager.visibleRows.length * gantt.rowsManager.getRowHeight())}}px"></div>\n' +
         '            </gantt-body-rows>\n' +
         '        </gantt-body>\n' +
         '    </gantt-scrollable>\n' +
@@ -5396,7 +5556,7 @@ angular.module('gantt.templates', []).run(['$templateCache', function($templateC
         '\n' +
         '    <!-- Task template -->\n' +
         '    <script type="text/ng-template" id="template/ganttTask.tmpl.html">\n' +
-        '        <div class="gantt-task" ng-class="task.model.classes">\n' +
+        '        <div class="gantt-task">\n' +
         '            <gantt-task-background></gantt-task-background>\n' +
         '            <gantt-task-foreground></gantt-task-foreground>\n' +
         '            <gantt-task-content></gantt-task-content>\n' +
@@ -5422,24 +5582,15 @@ angular.module('gantt.templates', []).run(['$templateCache', function($templateC
         '\n' +
         '    <!-- Row background template -->\n' +
         '    <script type="text/ng-template" id="template/ganttRowBackground.tmpl.html">\n' +
-        '        <div class="gantt-row gantt-row-height"\n' +
-        '             ng-class="row.model.classes"\n' +
-        '             ng-class-odd="\'gantt-row-odd\'"\n' +
-        '             ng-class-even="\'gantt-row-even\'"\n' +
-        '             ng-style="{\'height\': row.model.height}">\n' +
-        '            <div class="gantt-row-background"\n' +
-        '                 ng-style="{\'background-color\': row.model.color}">\n' +
+        '        <div class="gantt-row gantt-row-height">\n' +
+        '            <div class="gantt-row-background">\n' +
         '            </div>\n' +
         '        </div>\n' +
         '    </script>\n' +
         '\n' +
         '    <!-- Row template -->\n' +
         '    <script type="text/ng-template" id="template/ganttRow.tmpl.html">\n' +
-        '        <div class="gantt-row gantt-row-height"\n' +
-        '             ng-class="row.model.classes"\n' +
-        '             ng-class-odd="\'gantt-row-odd\'"\n' +
-        '             ng-class-even="\'gantt-row-even\'"\n' +
-        '             ng-style="{\'height\': row.model.height}">\n' +
+        '        <div class="gantt-row gantt-row-height">\n' +
         '            <div ng-transclude class="gantt-row-content"></div>\n' +
         '        </div>\n' +
         '    </script>\n' +
@@ -5452,16 +5603,13 @@ angular.module('gantt.templates', []).run(['$templateCache', function($templateC
         '            </div>\n' +
         '            <div class="gantt-side-background-body" ng-style="getMaxHeightCss()">\n' +
         '                <div gantt-vertical-scroll-receiver>\n' +
+        '                    <div class="toppaddingrow" style="height: 0px"></div>\n' +
         '                    <div class="gantt-row gantt-row-height "\n' +
-        '                         ng-class-odd="\'gantt-row-odd\'"\n' +
-        '                         ng-class-even="\'gantt-row-even\'"\n' +
-        '                         ng-class="row.model.classes"\n' +
-        '                         ng-repeat="row in gantt.rowsManager.visibleRows track by row.model.id"\n' +
-        '                         ng-style="{\'height\': row.model.height}">\n' +
-        '                        <div gantt-row-label class="gantt-row-label gantt-row-background"\n' +
-        '                             ng-style="{\'background-color\': row.model.color}">\n' +
+        '                         ng-repeat="row in gantt.rowsManager.visibleRows track by row.model.id">\n' +
+        '                        <div gantt-row-label class="gantt-row-label gantt-row-background">\n' +
         '                        </div>\n' +
         '                    </div>\n' +
+        '                    <div class="bottompaddingrow" ng-style-attr="height: {{gantt.scroll.getScrollHeight() - (gantt.rowsManager.visibleRows.length * gantt.rowsManager.getRowHeight())}}px"></div>\n' +
         '                </div>\n' +
         '            </div>\n' +
         '        </div>\n' +

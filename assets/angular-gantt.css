@@ -225,8 +225,9 @@
     height: 100%;
 }
 
-.gantt-row-even > .gantt-row-background {
-    background-color: #EFEFEF;
+/* Move to plugin */
+.gantt-row:nth-child(even) > .gantt-row-background {
+    background-color: #efefef;
 }
 
 .gantt-row {
@@ -338,4 +339,9 @@
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+li.bottompaddingrow, li.toppaddingrow, div.bottompaddingrow, div.toppaddingrow {
+    list-style: none !important;
+    background: transparent;
 }
